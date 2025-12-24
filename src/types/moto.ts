@@ -49,9 +49,36 @@ export interface MotoProfile {
   color?: string;
 }
 
+export interface CorePart {
+  id: string;
+  type: CorePartType;
+  lastServiceDate: string;
+  lastServiceOdometer: number;
+  intervalKm: number;
+  intervalMonths: number;
+  brand?: string;
+  notes?: string;
+}
+
 export type MaintenanceType = MaintenanceRecord['type'];
 export type PartCategory = PartRecord['category'];
 export type FuelType = FuelRecord['fuelType'];
+export type CorePartType = 
+  | 'engine_oil' 
+  | 'oil_filter' 
+  | 'air_filter' 
+  | 'spark_plugs' 
+  | 'brake_pads_front' 
+  | 'brake_pads_rear' 
+  | 'brake_fluid' 
+  | 'coolant' 
+  | 'chain' 
+  | 'sprockets' 
+  | 'tires_front' 
+  | 'tires_rear' 
+  | 'battery' 
+  | 'fork_oil' 
+  | 'valve_clearance';
 
 export const MAINTENANCE_TYPES: Record<MaintenanceType, string> = {
   oil_change: 'Cambio Olio',
@@ -79,4 +106,22 @@ export const FUEL_TYPES: Record<FuelType, string> = {
   gasoline: 'Benzina',
   diesel: 'Diesel',
   premium: 'Super',
+};
+
+export const CORE_PART_TYPES: Record<CorePartType, string> = {
+  engine_oil: 'Olio Motore',
+  oil_filter: 'Filtro Olio',
+  air_filter: 'Filtro Aria',
+  spark_plugs: 'Candele',
+  brake_pads_front: 'Pastiglie Freno Ant.',
+  brake_pads_rear: 'Pastiglie Freno Post.',
+  brake_fluid: 'Liquido Freni',
+  coolant: 'Liquido Raffreddamento',
+  chain: 'Catena',
+  sprockets: 'Corona e Pignone',
+  tires_front: 'Gomma Anteriore',
+  tires_rear: 'Gomma Posteriore',
+  battery: 'Batteria',
+  fork_oil: 'Olio Forcelle',
+  valve_clearance: 'Registro Valvole',
 };
