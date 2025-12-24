@@ -8,7 +8,8 @@ import {
   BarChart3, 
   Menu, 
   X,
-  Bike
+  Bike,
+  Settings2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,8 +19,10 @@ interface LayoutProps {
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: Home },
+  { path: '/profile', label: 'Profilo Moto', icon: Bike },
   { path: '/fuel', label: 'Carburante', icon: Fuel },
   { path: '/maintenance', label: 'Manutenzione', icon: Wrench },
+  { path: '/core-parts', label: 'Parti', icon: Settings2 },
   { path: '/parts', label: 'Ricambi', icon: Cog },
   { path: '/statistics', label: 'Statistiche', icon: BarChart3 },
 ];
