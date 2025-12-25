@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Bell, BellRing, X, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Bell, BellRing, X, AlertTriangle, Clock, CheckCircle2, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -9,74 +9,150 @@ import { differenceInDays, parseISO, format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
+import { useMoto } from '@/contexts/MotoContext';
 
 export interface Notification {
   id: string;
-  type: 'overdue' | 'warning' | 'info';
+  type: 'overdue' | 'warning' | 'info' | 'document';
   title: string;
   message: string;
   partType?: string;
+  motoId?: string;
+  motoName?: string;
   createdAt: string;
   read: boolean;
 }
 
+interface Document {
+  id: string;
+  type: string;
+  name: string;
+  expiryDate: string;
+}
+
 export function NotificationBell() {
-  const { value: parts } = useLocalStorage<CorePart[]>('moto-core-parts', []);
-  const { value: profile } = useLocalStorage<MotoProfile>('moto-profile', { currentOdometer: 0 } as MotoProfile);
-  const { value: notifications, setValue: setNotifications } = useLocalStorage<Notification[]>('moto-notifications', []);
+  const { motorcycles, currentMoto, getStorageKey } = useMoto();
+  const { value: notifications, setValue: setNotifications } = useLocalStorage<Notification[]>('moto-notifications-global', []);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Generate notifications from parts status
-  useEffect(() => {
+  // Generate notifications from all motorcycles
+  const checkForNotifications = useCallback(() => {
     const newNotifications: Notification[] = [];
 
-    parts.forEach((part) => {
-      const currentOdometer = profile.currentOdometer;
-      const kmSinceService = currentOdometer - part.lastServiceOdometer;
-      const daysSinceService = differenceInDays(new Date(), parseISO(part.lastServiceDate));
-      const monthsSinceService = daysSinceService / 30;
+    motorcycles.forEach((moto) => {
+      // Check core parts
+      const partsKey = `moto-core-parts-${moto.id}`;
+      const partsData = localStorage.getItem(partsKey);
+      const parts: CorePart[] = partsData ? JSON.parse(partsData) : [];
 
-      const kmProgress = (kmSinceService / part.intervalKm) * 100;
-      const timeProgress = (monthsSinceService / part.intervalMonths) * 100;
-      const maxProgress = Math.max(kmProgress, timeProgress);
+      parts.forEach((part) => {
+        const kmSinceService = moto.currentOdometer - part.lastServiceOdometer;
+        const daysSinceService = differenceInDays(new Date(), parseISO(part.lastServiceDate));
+        const monthsSinceService = daysSinceService / 30;
 
-      const partName = CORE_PART_TYPES[part.type];
-      const existingNotification = notifications.find(n => n.partType === part.type);
+        const kmProgress = (kmSinceService / part.intervalKm) * 100;
+        const timeProgress = (monthsSinceService / part.intervalMonths) * 100;
+        const maxProgress = Math.max(kmProgress, timeProgress);
 
-      if (maxProgress >= 100) {
-        if (!existingNotification || existingNotification.type !== 'overdue') {
-          newNotifications.push({
-            id: `${part.type}-overdue-${Date.now()}`,
-            type: 'overdue',
-            title: 'Manutenzione Scaduta!',
-            message: `${partName} necessita manutenzione immediata`,
-            partType: part.type,
-            createdAt: new Date().toISOString(),
-            read: false,
-          });
+        const partName = CORE_PART_TYPES[part.type];
+        const notificationId = `${moto.id}-${part.type}`;
+
+        if (maxProgress >= 100) {
+          const existing = notifications.find(n => n.id === `${notificationId}-overdue`);
+          if (!existing) {
+            newNotifications.push({
+              id: `${notificationId}-overdue`,
+              type: 'overdue',
+              title: 'Manutenzione Scaduta!',
+              message: `${partName} su ${moto.name} necessita manutenzione`,
+              partType: part.type,
+              motoId: moto.id,
+              motoName: moto.name,
+              createdAt: new Date().toISOString(),
+              read: false,
+            });
+          }
+        } else if (maxProgress >= 80) {
+          const existing = notifications.find(n => n.id === `${notificationId}-warning`);
+          if (!existing) {
+            newNotifications.push({
+              id: `${notificationId}-warning`,
+              type: 'warning',
+              title: 'Manutenzione in Scadenza',
+              message: `${partName} su ${moto.name} scade presto`,
+              partType: part.type,
+              motoId: moto.id,
+              motoName: moto.name,
+              createdAt: new Date().toISOString(),
+              read: false,
+            });
+          }
         }
-      } else if (maxProgress >= 80) {
-        if (!existingNotification || existingNotification.type !== 'warning') {
-          newNotifications.push({
-            id: `${part.type}-warning-${Date.now()}`,
-            type: 'warning',
-            title: 'Manutenzione in Scadenza',
-            message: `${partName} necessiterà manutenzione a breve`,
-            partType: part.type,
-            createdAt: new Date().toISOString(),
-            read: false,
-          });
+      });
+
+      // Check documents
+      const docsKey = `moto-documents-${moto.id}`;
+      const docsData = localStorage.getItem(docsKey);
+      const docs: Document[] = docsData ? JSON.parse(docsData) : [];
+
+      docs.forEach((doc) => {
+        const daysUntilExpiry = differenceInDays(parseISO(doc.expiryDate), new Date());
+        const notificationId = `${moto.id}-doc-${doc.id}`;
+
+        if (daysUntilExpiry < 0) {
+          const existing = notifications.find(n => n.id === `${notificationId}-expired`);
+          if (!existing) {
+            newNotifications.push({
+              id: `${notificationId}-expired`,
+              type: 'document',
+              title: 'Documento Scaduto!',
+              message: `${doc.name} su ${moto.name} è scaduto`,
+              motoId: moto.id,
+              motoName: moto.name,
+              createdAt: new Date().toISOString(),
+              read: false,
+            });
+          }
+        } else if (daysUntilExpiry <= 30) {
+          const existing = notifications.find(n => n.id === `${notificationId}-expiring`);
+          if (!existing) {
+            newNotifications.push({
+              id: `${notificationId}-expiring`,
+              type: 'warning',
+              title: 'Documento in Scadenza',
+              message: `${doc.name} su ${moto.name} scade tra ${daysUntilExpiry} giorni`,
+              motoId: moto.id,
+              motoName: moto.name,
+              createdAt: new Date().toISOString(),
+              read: false,
+            });
+          }
         }
-      }
+      });
     });
 
     if (newNotifications.length > 0) {
-      // Remove old notifications for updated parts and add new ones
-      const updatedParts = newNotifications.map(n => n.partType);
-      const filteredNotifications = notifications.filter(n => !updatedParts.includes(n.partType));
-      setNotifications([...newNotifications, ...filteredNotifications].slice(0, 50));
+      setNotifications(prev => [...newNotifications, ...prev].slice(0, 50));
+      
+      // Request push notification if enabled
+      if ('Notification' in window && Notification.permission === 'granted') {
+        newNotifications.forEach(n => {
+          new Notification(n.title, {
+            body: n.message,
+            icon: '/favicon.ico',
+            tag: n.id,
+          });
+        });
+      }
     }
-  }, [parts, profile.currentOdometer]);
+  }, [motorcycles, notifications, setNotifications]);
+
+  // Check notifications on mount and every 5 minutes
+  useEffect(() => {
+    checkForNotifications();
+    const interval = setInterval(checkForNotifications, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [checkForNotifications]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -100,6 +176,8 @@ export function NotificationBell() {
         return <AlertTriangle className="w-5 h-5 text-destructive" />;
       case 'warning':
         return <Clock className="w-5 h-5 text-warning" />;
+      case 'document':
+        return <Calendar className="w-5 h-5 text-destructive" />;
       default:
         return <CheckCircle2 className="w-5 h-5 text-success" />;
     }

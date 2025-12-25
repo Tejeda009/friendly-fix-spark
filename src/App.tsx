@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { MotoProvider } from "./contexts/MotoContext";
 import Index from "./pages/Index";
 import FuelPage from "./pages/FuelPage";
 import MaintenancePage from "./pages/MaintenancePage";
@@ -22,19 +23,21 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/fuel" element={<FuelPage />} />
-          <Route path="/maintenance" element={<MaintenancePage />} />
-          <Route path="/core-parts" element={<CorePartsPage />} />
-          <Route path="/parts" element={<PartsPage />} />
-          <Route path="/statistics" element={<StatisticsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/documents" element={<DocumentsPage />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <MotoProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/fuel" element={<FuelPage />} />
+            <Route path="/maintenance" element={<MaintenancePage />} />
+            <Route path="/core-parts" element={<CorePartsPage />} />
+            <Route path="/parts" element={<PartsPage />} />
+            <Route path="/statistics" element={<StatisticsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/documents" element={<DocumentsPage />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </MotoProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
