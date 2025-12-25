@@ -10,6 +10,8 @@ import PartsPage from "./pages/PartsPage";
 import StatisticsPage from "./pages/StatisticsPage";
 import ProfilePage from "./pages/ProfilePage";
 import CorePartsPage from "./pages/CorePartsPage";
+import SettingsPage from "./pages/SettingsPage";
+import DocumentsPage from "./pages/DocumentsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +30,8 @@ const App = () => (
           <Route path="/core-parts" element={<CorePartsPage />} />
           <Route path="/parts" element={<PartsPage />} />
           <Route path="/statistics" element={<StatisticsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/documents" element={<DocumentsPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
