@@ -1,22 +1,29 @@
-import { useState } from 'react';
-import { Bike, Save, Edit2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Bike, Save, Edit2, Plus, Trash2 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useMoto } from '@/contexts/MotoContext';
 import { MotoProfile } from '@/types/moto';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
-function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
-
-const defaultProfile: MotoProfile = {
-  id: generateId(),
+const emptyProfile: Omit<MotoProfile, 'id'> = {
   name: '',
   brand: '',
   model: '',
@@ -29,9 +36,27 @@ const defaultProfile: MotoProfile = {
 };
 
 export default function ProfilePage() {
-  const { value: profile, setValue: setProfile } = useLocalStorage<MotoProfile>('moto-profile', defaultProfile);
-  const [isEditing, setIsEditing] = useState(!profile.name);
-  const [formData, setFormData] = useState<MotoProfile>(profile);
+  const { motorcycles, currentMoto, addMotorcycle, updateMotorcycle, deleteMotorcycle, setCurrentMoto } = useMoto();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  
+  const isNewMoto = searchParams.get('new') === 'true';
+  const [isEditing, setIsEditing] = useState(isNewMoto || !currentMoto);
+  const [isCreating, setIsCreating] = useState(isNewMoto);
+  const [formData, setFormData] = useState<Omit<MotoProfile, 'id'>>(
+    isNewMoto ? emptyProfile : (currentMoto || emptyProfile)
+  );
+
+  // Update form when current moto changes
+  useEffect(() => {
+    if (currentMoto && !isCreating) {
+      setFormData(currentMoto);
+      setIsEditing(false);
+    } else if (!currentMoto && motorcycles.length === 0) {
+      setIsEditing(true);
+      setIsCreating(true);
+    }
+  }, [currentMoto, motorcycles.length, isCreating]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,23 +66,51 @@ export default function ProfilePage() {
       return;
     }
 
-    setProfile({ ...formData, id: profile.id || generateId() });
+    if (isCreating) {
+      const newId = addMotorcycle(formData);
+      setCurrentMoto(newId);
+      toast.success('Moto aggiunta con successo!');
+      setIsCreating(false);
+      navigate('/profile');
+    } else if (currentMoto) {
+      updateMotorcycle(currentMoto.id, formData);
+      toast.success('Profilo salvato');
+    }
+    
     setIsEditing(false);
-    toast.success('Profilo salvato');
   };
 
   const handleCancel = () => {
-    setFormData(profile);
+    if (isCreating && motorcycles.length > 0) {
+      setIsCreating(false);
+      setFormData(currentMoto || emptyProfile);
+      navigate('/profile');
+    } else if (currentMoto) {
+      setFormData(currentMoto);
+    }
     setIsEditing(false);
+  };
+
+  const handleDelete = () => {
+    if (currentMoto) {
+      deleteMotorcycle(currentMoto.id);
+      toast.success('Moto eliminata');
+    }
+  };
+
+  const handleNewMoto = () => {
+    setFormData(emptyProfile);
+    setIsCreating(true);
+    setIsEditing(true);
   };
 
   return (
     <Layout>
       <PageHeader 
-        title="Profilo Moto" 
-        description="Dettagli della tua moto"
+        title={isCreating ? "Nuova Moto" : "Profilo Moto"} 
+        description={isCreating ? "Aggiungi una nuova moto al tuo garage" : "Dettagli della tua moto"}
         icon={Bike}
-        action={!isEditing && profile.name ? {
+        action={!isEditing && currentMoto ? {
           label: 'Modifica',
           onClick: () => setIsEditing(true),
           icon: Edit2,
@@ -71,7 +124,7 @@ export default function ProfilePage() {
             <CardHeader>
               <CardTitle className="font-display text-xl flex items-center gap-2">
                 <Bike className="w-5 h-5 text-primary" />
-                {isEditing ? 'Modifica Profilo' : 'Informazioni Moto'}
+                {isEditing ? (isCreating ? 'Nuova Moto' : 'Modifica Profilo') : 'Informazioni Moto'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -188,38 +241,76 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="flex gap-3 pt-4">
-                    {profile.name && (
+                    {(currentMoto || (isCreating && motorcycles.length > 0)) && (
                       <Button type="button" variant="outline" onClick={handleCancel}>
                         Annulla
                       </Button>
                     )}
                     <Button type="submit" className="btn-glow flex items-center gap-2">
                       <Save className="w-4 h-4" />
-                      Salva Profilo
+                      {isCreating ? 'Aggiungi Moto' : 'Salva Profilo'}
                     </Button>
                   </div>
                 </form>
-              ) : (
+              ) : currentMoto ? (
                 <div className="space-y-6">
                   <div className="flex items-center gap-4 p-4 rounded-xl bg-primary/10 border border-primary/20">
                     <div className="w-16 h-16 rounded-xl bg-primary/20 flex items-center justify-center">
                       <Bike className="w-8 h-8 text-primary" />
                     </div>
                     <div>
-                      <h2 className="font-display text-2xl font-bold">{profile.name}</h2>
+                      <h2 className="font-display text-2xl font-bold">{currentMoto.name}</h2>
                       <p className="text-muted-foreground">
-                        {profile.brand} {profile.model} ({profile.year})
+                        {currentMoto.brand} {currentMoto.model} ({currentMoto.year})
                       </p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    <InfoItem label="Chilometraggio" value={`${profile.currentOdometer.toLocaleString()} km`} />
-                    <InfoItem label="Colore" value={profile.color || '-'} />
-                    <InfoItem label="Targa" value={profile.licensePlate || '-'} />
-                    <InfoItem label="Data Acquisto" value={profile.purchaseDate ? format(new Date(profile.purchaseDate), 'dd/MM/yyyy') : '-'} />
-                    <InfoItem label="Numero Telaio" value={profile.vin || '-'} className="col-span-2" />
+                    <InfoItem label="Chilometraggio" value={`${currentMoto.currentOdometer.toLocaleString()} km`} />
+                    <InfoItem label="Colore" value={currentMoto.color || '-'} />
+                    <InfoItem label="Targa" value={currentMoto.licensePlate || '-'} />
+                    <InfoItem label="Data Acquisto" value={currentMoto.purchaseDate ? format(new Date(currentMoto.purchaseDate), 'dd/MM/yyyy') : '-'} />
+                    <InfoItem label="Numero Telaio" value={currentMoto.vin || '-'} className="col-span-2" />
                   </div>
+
+                  {motorcycles.length > 1 && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" className="mt-4">
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Elimina Moto
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Eliminare questa moto?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Questa azione eliminerà permanentemente "{currentMoto.name}" e tutti i dati associati 
+                            (rifornimenti, manutenzioni, parti, documenti). L'azione non può essere annullata.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annulla</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDelete}>
+                            Elimina
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Bike className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+                  <h3 className="font-display text-xl font-bold mb-2">Nessuna moto selezionata</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Aggiungi la tua prima moto per iniziare
+                  </p>
+                  <Button onClick={handleNewMoto} className="btn-glow">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Aggiungi Moto
+                  </Button>
                 </div>
               )}
             </CardContent>
@@ -228,25 +319,65 @@ export default function ProfilePage() {
 
         {/* Stats Sidebar */}
         <div className="space-y-4">
+          {currentMoto && (
+            <Card className="glass-card border-border">
+              <CardHeader>
+                <CardTitle className="text-lg">Riepilogo</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Chilometri</span>
+                  <span className="font-display font-bold text-primary">
+                    {currentMoto.currentOdometer.toLocaleString()} km
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Anno</span>
+                  <span className="font-bold">{currentMoto.year}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Età</span>
+                  <span className="font-bold">{new Date().getFullYear() - currentMoto.year} anni</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* All Motorcycles */}
           <Card className="glass-card border-border">
-            <CardHeader>
-              <CardTitle className="text-lg">Riepilogo</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg">Le Tue Moto</CardTitle>
+              <Button variant="ghost" size="sm" onClick={handleNewMoto}>
+                <Plus className="w-4 h-4" />
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Chilometri</span>
-                <span className="font-display font-bold text-primary">
-                  {profile.currentOdometer.toLocaleString()} km
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Anno</span>
-                <span className="font-bold">{profile.year}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Età</span>
-                <span className="font-bold">{new Date().getFullYear() - profile.year} anni</span>
-              </div>
+            <CardContent className="space-y-2">
+              {motorcycles.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nessuna moto registrata
+                </p>
+              ) : (
+                motorcycles.map((moto) => (
+                  <button
+                    key={moto.id}
+                    onClick={() => {
+                      setCurrentMoto(moto.id);
+                      setIsCreating(false);
+                      setIsEditing(false);
+                    }}
+                    className={`w-full p-3 rounded-lg text-left transition-colors ${
+                      moto.id === currentMoto?.id
+                        ? 'bg-primary/10 border border-primary/30'
+                        : 'bg-secondary/50 hover:bg-secondary'
+                    }`}
+                  >
+                    <p className="font-medium truncate">{moto.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {moto.brand} {moto.model}
+                    </p>
+                  </button>
+                ))
+              )}
             </CardContent>
           </Card>
 
@@ -255,7 +386,7 @@ export default function ProfilePage() {
               <div className="text-center">
                 <Bike className="w-12 h-12 mx-auto text-primary mb-3" />
                 <p className="text-sm text-muted-foreground">
-                  Mantieni aggiornato il profilo per avere statistiche accurate
+                  Gestisci più moto e passa da una all'altra facilmente
                 </p>
               </div>
             </CardContent>

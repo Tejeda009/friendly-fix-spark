@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NotificationBell } from './NotificationBell';
+import { MotoSelector } from './MotoSelector';
 
 interface LayoutProps {
   children: ReactNode;
@@ -39,20 +40,21 @@ export function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Mobile Header */}
-      <header className="lg:hidden flex items-center justify-between p-4 border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-50">
+      <header className="lg:hidden flex items-center justify-between p-3 border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-50">
         <Link to="/" className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-            <Bike className="w-6 h-6 text-primary" />
+          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+            <Bike className="w-5 h-5 text-primary" />
           </div>
-          <span className="font-display text-xl font-bold tracking-wider">MOTO<span className="text-primary">TRACK</span></span>
+          <span className="font-display text-lg font-bold tracking-wider">MOTO<span className="text-primary">TRACK</span></span>
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <MotoSelector />
           <NotificationBell />
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 rounded-lg hover:bg-secondary transition-colors"
           >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </header>
@@ -81,7 +83,7 @@ export function Layout({ children }: LayoutProps) {
 
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 min-h-screen border-r border-border bg-sidebar p-6 sticky top-0">
-        <div className="flex items-center justify-between mb-10">
+        <div className="flex items-center justify-between mb-6">
           <Link to="/" className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center animate-pulse-glow">
               <Bike className="w-7 h-7 text-primary" />
@@ -92,6 +94,11 @@ export function Layout({ children }: LayoutProps) {
             </div>
           </Link>
           <NotificationBell />
+        </div>
+
+        {/* Moto Selector */}
+        <div className="mb-6">
+          <MotoSelector />
         </div>
 
         <nav className="flex-1 space-y-2">
